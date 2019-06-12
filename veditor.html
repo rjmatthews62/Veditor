@@ -1,0 +1,272 @@
+<html>
+  <head>
+    <title>Veditor</title>
+    <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/4.0.0/css/bootstrap.min.css" integrity="sha384-Gn5384xqQ1aoWXA+058RXPxPg6fy4IWvTNh0E263XmFcJlSAwiGgFAW/dAiS6JXm" crossorigin="anonymous">
+    <script src="jquery-3.4.1.min.js"></script>
+    <script src="js/popper.min.js"></script>
+    <script src="js/bootstrap.min.js"></script>
+    <script>
+      $(function() {
+	showstatus("Ready");
+	$("#video").bind("timeupdate",updatetime).bind("pause",onpause).bind("play",onplay);
+
+	$("#btnplus10secs").click(function() {skip(10);});
+	$("#btnplus1secs").click(function() {skip(1);});
+	$("#btnminus10secs").click(function() {skip(-10);});
+	$("#btnminus1secs").click(function() {skip(-1);});
+	$("#btnpause").click(togglePause);
+	$("#btnin").click(inButton);
+	$("#btnout").click(outButton);
+	$("#btnaddskip").click(addSkip);
+	$("#btnparse").click(parseText);
+	$("#btnload").click(loadUrl);
+	$(window).resize(resize);
+	resize();
+      });
+
+var playlist=[];
+
+function showstatus(msg) {
+  $("#status").html(msg);
+}
+
+function videoObject() {
+  return $("#video")[0]; // Return DOM element.
+}
+
+function inButton() {
+  $("#invalue").html(secondtotime(videoObject().currentTime));
+}
+
+function outButton() {
+  $("#outvalue").html(secondtotime(videoObject().currentTime));
+}
+
+function onpause() {
+  $("#btnpause").html("Play");
+}
+
+function onplay() {
+  $("#btnpause").html("Pause");
+}
+
+function skip(seconds) {
+  videoObject().currentTime+=seconds;
+}
+
+function checkoverlap(segment1,segment2) {
+  if (segment1.end<segment2.start) return false; 
+  if (segment1.start>segment2.end) return false;
+  var result=new Object();
+  result.start=Math.min(segment1.start,segment2.start);
+  result.end=Math.max(segment1.end,segment2.end);
+  return result;
+}
+
+function addSkip() {
+  var stime = timetosec($("#invalue").html());
+  var etime = timetosec($("#outvalue").html());
+  if (stime<0 || etime<0 || etime<stime) return;
+  addSegment(stime,etime);
+}
+
+function addSegment(stime,etime) {
+  var segment = new Object();
+  segment.start=stime;
+  segment.end = etime;
+  for(var i=0; i<playlist.length; i++) {
+    var item = playlist[i];
+    var n = checkoverlap(item,segment);
+    if (n!==false) {
+      playlist[i]=n;
+      updatelist();
+      return;
+    }
+    if (segment.start<item.start) {
+      playlist.splice(i,0,segment);
+      updatelist();
+      return;
+    }
+  }
+  playlist.push(segment);
+  updatelist();
+}
+
+function parseText() {
+  var s=$("#scripts").val();
+  s=s.replace(/\r/g,"");
+  var lines=s.split("\n");
+  playlist=[];
+  for(var i=0; i<lines.length; i++) {
+    var t=lines[i].replace(/ +/g," ");
+    if (t.startsWith("Skip:")) {
+      var words = t.split(" ");
+      if (words.length<3) {
+	addlog("Syntax error: Not enough arguments line "+i);
+	return;
+      }
+      var stime=timetosec(words[1]);
+      var etime=timetosec(words[3]);
+      if (stime<0) {
+	addlog("Syntax error: Invalid time format (from) "+i);
+	return;
+      }
+      if (stime<0) {
+	addlog("Syntax error: Invalid time format (to) "+i);
+	return;
+      }
+      if (etime<stime) {
+	addlog("Syntax error: End time must be less than start time. "+i);
+        return;
+      }
+      addSegment(stime,etime);
+    }
+  }
+  updatelist();
+  addlog("Parsed. List Updated.");
+}
+
+function updatelist() {
+  var result="";
+  for(var i=0; i<playlist.length; i++) {
+    var item = playlist[i];
+    if (i>0) result+="\n";
+    result+="Skip: "+secondtotime(item.start)+" - "+secondtotime(item.end);
+  }
+  $("#scripts").val(result);
+}
+
+function loadUrl() {
+  var newurl=$("#videourl").val();
+  addlog("Loading "+newurl);
+  videoObject().src=newurl;
+}
+
+function resize() {
+  $("#video").width($("#videocontainer").width());
+}
+
+function timetosec(atime) {
+  if (atime==undefined) return -1
+  if (atime.trim()=="") return -1
+  var result = parseInt(atime.substring(0,2));
+  result = result*60 + parseInt(atime.substring(3,5));
+  result = result*60 + parseInt(atime.substring(6,8));
+  result += parseInt(atime.substring(9,12))/100;
+  if (result==NaN) return -1;
+  return result;
+}
+
+function secondtotime(seconds)  {
+  var sec = Math.floor(seconds);
+  var frac = seconds-sec;
+  var s = sec % 60;
+  sec = Math.floor(sec/60);
+  var m = sec % 60;
+  sec = Math.floor(sec/60);
+  var h=sec;
+  return pad(h,2)+":"+pad(m,2)+":"+pad(s,2)+"."+pad(Math.floor(frac*100),2);
+}
+
+function pad(n,w) {
+  var result=n.toString();
+  result=result.trim();
+  while (result.length<w) result="0"+result;
+  return result;
+}
+
+function togglePause() {
+  var v = videoObject();
+  if (v.paused) v.play();
+  else v.pause();
+}
+
+function addlog(msg) {
+  var s = $("#log").html();
+  s=msg+"\n"+s;
+  $("#log").html(s);
+}
+
+
+function updatetime() {
+  var duration=this.duration;
+  var position=this.currentTime;
+  showstatus("Position: "+secondtotime(position)+"/"+secondtotime(duration));
+  if ($("#enableskip").prop("checked")) {
+    for (var i=0; i<playlist.length; i++) {
+      var item=playlist[i];
+      if (position<item.start) break;
+      if (position>=item.start && position<item.end) {
+	addlog("Skipping to "+secondtotime(item.end));			  
+	this.currentTime=item.end;
+	break;
+      }
+    }
+  }
+}
+    </script>
+  </head>
+    <body>
+      <h1>Veditor</h1>
+      <p id="status">Status goes here</p>
+      <div class="container">
+	<div class="row">
+	  <div class="col-8" id="videocontainer">
+	    <video id="video"autoplay controls>
+	      <source src="Media/The%20Incredibles.mp4" type="video/mp4" />
+	      Your browser does not support the video tag.
+	    </video>
+	  </div>
+  <div class="col-4">
+    <textarea id="scripts" rows="8" cols="50"></textarea>
+  </div>
+	</div>
+      </div>
+      <div class="container">
+	<div class="row">
+	  <div class="col-sm-2">
+	    <button id="btnminus10secs" type="button">-10 secs</button>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnminus1secs" type="button">-1 sec</button>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnpause" type="button">Pause</button>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnplus1secs" type="button">1 sec</button>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnplus10secs" type="button">+10 secs</button>
+	  </div>
+	</div>
+	<div class="row">
+	  <div class="col-sm-2">
+	    <button id="btnin" type="button">In Mark</button><br/>
+	    <span id="invalue"></span>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnout" type="button">Out Mark</button><br/>
+	    <span id="outvalue"></span>
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnaddskip" type="button">Skip</button><br/>
+	  </div>
+	  <div class="col-sm-2">
+	    Enable Skip Play: <input type="checkbox" id="enableskip">
+	  </div>
+	  <div class="col-sm-2">
+	    <button id="btnparse" type="button">Parse</button>
+	  </div>
+	</div>
+	<div class="row">
+	  <div class="col-sm-10">
+	    Video URL: <input type="url" id="videourl" size="80"> <button type="button" id="btnload">Load</button>
+	  </div>
+	</div>
+      </div>
+      </div>
+      <pre id="log">
+      </pre>
+    </body>
+</html>
