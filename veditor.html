@@ -9,22 +9,154 @@
       $(function() {
 	showstatus("Ready");
 	$("#video").bind("timeupdate",updatetime).bind("pause",onpause).bind("play",onplay);
-
+        $("#btnstart").click(function() {videoObject().currentTime=0;});
 	$("#btnplus10secs").click(function() {skip(10);});
 	$("#btnplus1secs").click(function() {skip(1);});
 	$("#btnminus10secs").click(function() {skip(-10);});
 	$("#btnminus1secs").click(function() {skip(-1);});
+	$("#btnplus1frame").click(function() {skip(0.04);});
+	$("#btnminus1frame").click(function() {skip(-0.04);});
 	$("#btnpause").click(togglePause);
 	$("#btnin").click(inButton);
 	$("#btnout").click(outButton);
 	$("#btnaddskip").click(addSkip);
+	$("#btnaddmute").click(addMute);
 	$("#btnparse").click(parseText);
 	$("#btnload").click(loadUrl);
+	$("#btntoin").click(gotoInMark);
+	$("#btntoout").click(gotoOutMark);
+	$("#btnslow").click(toggleSlow);
+	$("#btnmedia").click(toggleMedia);
+	$("#btnhelp").click(function() { $("#help").toggle();});
 	$(window).resize(resize);
 	resize();
       });
 
-var playlist=[];
+var program = new Program();
+
+function Segment(name,stime,etime) {
+  this.start=stime;
+  this.end=etime;
+  this.name=name;
+  this.toString = function() {
+    return this.name+": "+secondtotime(this.start)+" - "+secondtotime(this.end);
+  }
+}
+
+function Program() {
+  this.url="";
+  this.skiplist=[];
+  this.mutelist=[];
+  
+  this.AddSkip=function(stime,etime) {
+    this.AddSegment(this.skiplist,stime,etime);
+  };
+  
+  this.AddMute=function(stime,etime) {
+    this.AddSegment(this.mutelist,stime,etime);
+  };
+
+  this.AddSegment=function(dest,stime,etime) {
+    var segment = new Segment(dest==this.mutelist ? "Mute" : "Skip",stime,etime);
+    for(var i=0; i<dest.length; i++) {
+      var item = dest[i];
+      var n = this.CheckOverlap(item,segment);
+      if (n!==false) {
+	dest[i]=n;
+	return;
+      }
+      if (segment.start<item.start) {
+	dest.splice(i,0,segment);
+	return;
+      }
+    }
+    dest.push(segment);
+  };
+
+  this.toString=function() {
+    var result="Url: "+this.url;
+    var viewlist = this.skiplist.concat(this.mutelist);
+    viewlist.sort(function(a,b) { return a.start-b.start;});
+    for(var i=0; i<viewlist.length; i++) {
+      var item = viewlist[i];
+      result+="\n"+item.toString();
+    }
+    return result;
+  };
+
+  this.CheckOverlap=function(segment1,segment2) {
+    if (segment1.end<segment2.start) return false; 
+    if (segment1.start>segment2.end) return false;
+    var result=new Segment(segment1.name, Math.min(segment1.start,segment2.start),Math.max(segment1.end,segment2.end));
+    return result;
+  };
+
+  this.IsSkipping=function(currentTime) {
+    for (var i=0; i<this.skiplist.length; i++) {
+      var item=this.skiplist[i];
+      if (currentTime<item.start) break;
+      if (currentTime>=item.start && currentTime<item.end) {
+	return item.end;
+      }
+    }
+    return false;
+  };
+
+    this.IsMuted=function(currentTime) {
+    for (var i=0; i<this.mutelist.length; i++) {
+      var item=this.mutelist[i];
+      if (currentTime<item.start) return false;
+      if (currentTime>=item.start && currentTime<item.end) {
+	return true;
+      }
+    }
+    return false;
+  };
+
+  this.ParseScript = function(script) { 
+    var s=script.replace(/\r/g,"");
+    var lines=s.split("\n");
+    this.skiplist=[];
+    this.mutelist=[];
+    for(var i=0; i<lines.length; i++) {
+      var t=lines[i].replace(/ +/g," ");
+      if (t.startsWith("Skip:")) {
+	if (!this.ParseSegment(this.skiplist,t,i)) return false;
+      } else if (t.startsWith("Mute:")) {
+	if (!this.ParseSegment(this.mutelist,t,i)) return false;
+      } else if (t.startsWith("Url:")) {
+	this.url=t.substring(4).trim();
+      }
+    }
+    return true;
+  };
+
+  this.ParseSegment=function(dest,t,i) {
+    var words = t.split(" ");
+    if (words.length<3) {
+      addlog("Syntax error: Not enough arguments line "+i);
+      return false;
+    }
+    var stime=timetosec(words[1]);
+    var etime=timetosec(words[3]);
+    if (stime<0) {
+      addlog("Syntax error: Invalid time format (from) "+i);
+      return false;
+    }
+    if (stime<0) {
+      addlog("Syntax error: Invalid time format (to) "+i);
+      return false;
+    }
+    if (etime<stime) {
+      addlog("Syntax error: End time must be less than start time. "+i);
+      return false;
+    }
+    this.AddSegment(dest,stime,etime);
+    return true;
+  };
+
+}
+
 
 function showstatus(msg) {
   $("#status").html(msg);
@@ -50,100 +182,77 @@ function onplay() {
   $("#btnpause").html("Pause");
 }
 
-function skip(seconds) {
-  videoObject().currentTime+=seconds;
+
+function gotoInMark() {
+  var stime = timetosec($("#invalue").html());
+  if (stime>=0) videoObject().currentTime=stime;
 }
 
-function checkoverlap(segment1,segment2) {
-  if (segment1.end<segment2.start) return false; 
-  if (segment1.start>segment2.end) return false;
-  var result=new Object();
-  result.start=Math.min(segment1.start,segment2.start);
-  result.end=Math.max(segment1.end,segment2.end);
-  return result;
+function gotoOutMark() {
+  var etime = timetosec($("#outvalue").html());
+  if (etime>=0) videoObject().currentTime=etime;
+}
+
+function toggleSlow() {
+  if (videoObject().playbackRate<1.0) {
+    videoObject().playbackRate=1.0;
+    $("#btnslow").html("Slow");
+  } else {
+    videoObject().playbackRate=0.25;
+    $("#btnslow").html("Normal");
+  }
+}
+
+function toggleMedia() {
+  $("#medialist").toggle();
+}
+
+function skip(seconds) {
+  videoObject().currentTime+=seconds;
 }
 
 function addSkip() {
   var stime = timetosec($("#invalue").html());
   var etime = timetosec($("#outvalue").html());
   if (stime<0 || etime<0 || etime<stime) return;
-  addSegment(stime,etime);
+  program.AddSkip(stime,etime);
+  updatelist();
 }
 
-function addSegment(stime,etime) {
-  var segment = new Object();
-  segment.start=stime;
-  segment.end = etime;
-  for(var i=0; i<playlist.length; i++) {
-    var item = playlist[i];
-    var n = checkoverlap(item,segment);
-    if (n!==false) {
-      playlist[i]=n;
-      updatelist();
-      return;
-    }
-    if (segment.start<item.start) {
-      playlist.splice(i,0,segment);
-      updatelist();
-      return;
-    }
-  }
-  playlist.push(segment);
+function addMute() {
+  var stime = timetosec($("#invalue").html());
+  var etime = timetosec($("#outvalue").html());
+  if (stime<0 || etime<0 || etime<stime) return;
+  program.AddMute(stime,etime);
   updatelist();
 }
 
 function parseText() {
   var s=$("#scripts").val();
-  s=s.replace(/\r/g,"");
-  var lines=s.split("\n");
-  playlist=[];
-  for(var i=0; i<lines.length; i++) {
-    var t=lines[i].replace(/ +/g," ");
-    if (t.startsWith("Skip:")) {
-      var words = t.split(" ");
-      if (words.length<3) {
-	addlog("Syntax error: Not enough arguments line "+i);
-	return;
-      }
-      var stime=timetosec(words[1]);
-      var etime=timetosec(words[3]);
-      if (stime<0) {
-	addlog("Syntax error: Invalid time format (from) "+i);
-	return;
-      }
-      if (stime<0) {
-	addlog("Syntax error: Invalid time format (to) "+i);
-	return;
-      }
-      if (etime<stime) {
-	addlog("Syntax error: End time must be less than start time. "+i);
-        return;
-      }
-      addSegment(stime,etime);
-    }
-  }
+  program.ParseScript(s);
   updatelist();
   addlog("Parsed. List Updated.");
+  if (program.url!="") {
+    videoObject().src=program.url;
+    $("#videourl").val(program.url);
+  }
 }
 
 function updatelist() {
-  var result="";
-  for(var i=0; i<playlist.length; i++) {
-    var item = playlist[i];
-    if (i>0) result+="\n";
-    result+="Skip: "+secondtotime(item.start)+" - "+secondtotime(item.end);
-  }
-  $("#scripts").val(result);
+  $("#scripts").val(program.toString());
 }
 
 function loadUrl() {
   var newurl=$("#videourl").val();
   addlog("Loading "+newurl);
   videoObject().src=newurl;
+  program.url=newurl;
+  updatelist();
 }
 
 function resize() {
   $("#video").width($("#videocontainer").width());
+  $("#medialist").width(window.innerWidth);
 }
 
 function timetosec(atime) {
@@ -191,81 +300,141 @@ function addlog(msg) {
 function updatetime() {
   var duration=this.duration;
   var position=this.currentTime;
+  var muted=this.muted;
+  var skiplist=program.skiplist;
   showstatus("Position: "+secondtotime(position)+"/"+secondtotime(duration));
   if ($("#enableskip").prop("checked")) {
-    for (var i=0; i<playlist.length; i++) {
-      var item=playlist[i];
-      if (position<item.start) break;
-      if (position>=item.start && position<item.end) {
-	addlog("Skipping to "+secondtotime(item.end));			  
-	this.currentTime=item.end;
-	break;
+    var checkskip=program.IsSkipping(position);
+    if (checkskip!==false){
+      this.currentTime=checkskip;
+      addlog("Skip to "+secondtotime(checkskip));
+    }
+    else {
+      var checkmute=program.IsMuted(position);
+      if (checkmute!=muted) {
+	this.muted=checkmute;
+	addlog("Mute: "+checkmute);
       }
     }
   }
 }
+
     </script>
   </head>
-    <body>
-      <h1>Veditor</h1>
-      <p id="status">Status goes here</p>
-      <div class="container">
-	<div class="row">
-	  <div class="col-8" id="videocontainer">
-	    <video id="video"autoplay controls>
-	      Your browser does not support the video tag.
-	    </video>
-	  </div>
-  <div class="col-4">
-    <textarea id="scripts" rows="8" cols="50"></textarea>
+  <body>
+    <h1>Veditor</h1>
+    <p id="status">Status goes here</p>
+    <div class="container-fluid">
+      <div class="row">
+	<div class="col-6 offset-1" id="videocontainer">
+	  <video id="video"autoplay controls>
+	    Your browser does not support the video tag.
+	  </video>
+	</div>
+  <div class="col-auto">
+    Script<br/>
+    <textarea id="scripts" rows="8" cols="80"></textarea>
   </div>
+      </div>
+    </div>
+    <div class="container-fluid">
+      <div class="row">
+	<div class="col-sm-1 offset-1">
+	  <button id="btnstart" type="button">Start</button>
+	</div>
+    <div class="col-sm-1">
+      <button id="btnminus10secs" type="button">-10 secs</button>
+    </div>
+    <div class="col-sm-1">
+      <button id="btnminus1frame" type="button" title="Back one frame">&lt;</button>
+      <button id="btnminus1secs" type="button">-1 sec</button>
+    </div>
+    <div class="col-sm-1">
+      <button id="btnpause" type="button">Pause</button>
+    </div>
+    <div class="col-sm-1">
+      <button id="btnplus1secs" type="button">1 sec</button>
+      <button id="btnplus1frame" type="button" title="Forward one frame">&gt;</button>
+    </div>
+    <div class="col-sm-1">
+      <button id="btnplus10secs" type="button">+10 secs</button>
+    </div>
+      </div>
+      <div class="row">
+	<div class="col-sm-1 offset-sm-1">
+	  <button id="btnin" type="button">In Mark</button>
+	  <button id="btntoin" type="button" title="Go to In mark">*</button>
+	  <br/>
+	  <span id="invalue"></span>
+	</div>
+	<div class="col-sm-1">
+	  <button id="btnout" type="button">Out Mark</button>
+  	  <button id="btntoout" type="button" title="Go to Out mark">*</button>
+	  <br/>
+	  <span id="outvalue"></span>
+	</div>
+	<div class="col-sm-1">
+	  <button id="btnaddskip" type="button">Skip</button>
+	</div>
+	<div class="col-sm-1">
+	  <button id="btnaddmute" type="button">Mute</button>
+	</div>
+	<div class="col-sm-1">
+	  <button id="btnslow" type="button">Slow</button>
 	</div>
       </div>
-      <div class="container">
-	<div class="row">
-	  <div class="col-sm-2">
-	    <button id="btnminus10secs" type="button">-10 secs</button>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnminus1secs" type="button">-1 sec</button>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnpause" type="button">Pause</button>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnplus1secs" type="button">1 sec</button>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnplus10secs" type="button">+10 secs</button>
-	  </div>
+      <div class="row">
+	<div class="col-sm-2 offset-1">
+	  Enable Skip Play: <input type="checkbox" id="enableskip">
 	</div>
-	<div class="row">
-	  <div class="col-sm-2">
-	    <button id="btnin" type="button">In Mark</button><br/>
-	    <span id="invalue"></span>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnout" type="button">Out Mark</button><br/>
-	    <span id="outvalue"></span>
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnaddskip" type="button">Skip</button><br/>
-	  </div>
-	  <div class="col-sm-2">
-	    Enable Skip Play: <input type="checkbox" id="enableskip">
-	  </div>
-	  <div class="col-sm-2">
-	    <button id="btnparse" type="button">Parse</button>
-	  </div>
-	</div>
-	<div class="row">
-	  <div class="col-sm-10">
-	    Video URL: <input type="url" id="videourl" size="80"> <button type="button" id="btnload">Load</button>
-	  </div>
+	<div class="col-sm-1">
+	  <button id="btnparse" type="button">Load Script</button>
 	</div>
       </div>
+
+      <div class="row">
+	<div class="col-sm-10 offset-sm-1">
+	  Video URL: <input type="url" id="videourl" size="80"> 
+	  <button type="button" id="btnload">Load Video</button>
+	  <button type="button" id="btnmedia" title="Toggle Media List">Media</button>
+	  <button type="button" id="btnhelp">Help</button>
+	</div>
       </div>
-      <pre id="log">
+    </div>
+    </div>
+    <iframe id="medialist" style="display:none; height:2in;" src="Media"></iframe>
+    <div id="help" style="display:none;">
+      <h3>Help</h3>
+      <ul>
+	<li>Start - Go to video start</li>
+	<li>-10,-1,1,+10 secs - go forward or back the listed seconds</li>
+	<li>&lt; &gt; navigate by approx 1 frame (1/25 second)</li>
+	<li>Pause/Play - Control video playing</li>
+	<li>In Mark - set the start of the edit (*=goto mark)</li>
+	<li>Out Mark - set the end of the edit (*=goto mark)</li>
+	<li>Skip - Add a "Skip" to the edit list... will skip the unwanted scene, from the in mark to the out mark</li>
+	<li>Mute - Add a "Mute" to the edit list... will mute from the in mark to the out mark</li>
+	<li>Slow/Normal - toggle 25% playback speed.</li>
+	<li>Enable Skip Play: If checked, the playback will honour the skips and mutes</li>
+	<li>Load Script - will parse the script contents of the script box and run the script.</li>
+	<li>Video URL - URL of currently edited video. Strong advise this be a local resource.</li>
+	<li>Load Video - will attempt to load the video in the URL.</li>
+	<li>Media - Toggles a list of the contents of the Media subfolder. You can use copy link address to obtain the video URL</li>
+	<li>Help - Toggles this screen</li>
+      </ul>
+      <p>Scripts: currently must be copied and pasted to and from the "script" box to save and load. Use "Load Script" to read the script. Scripts can be manually
+      edited, but you must hit "Load Script" to pick up changes.</p>
+      <p>Sample script:</p>
+      <pre>
+Url: file:///C:/td/veditor/Media/The%20Incredibles.mp4
+Skip: 00:00:00.00 - 00:03:33.00
+Mute: 00:03:44.37 - 00:03:44.58
+Skip: 00:03:57.71 - 00:05:09.43
       </pre>
-    </body>
+      <h3>Meda</h3>
+      <p>As an aid to editing, you can copy video files into the "Media" (a subfolder of Veditor> and these can be viewed by clicking the "Media" button. A fully qualified path starts with file:/// for a local file, but relative paths (such as "Media/The Incredibles.mp4" should also work.</p>
+    </div>
+    <pre id="log">
+    </pre>
+  </body>
 </html>

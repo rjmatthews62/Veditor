@@ -1,0 +1,4 @@
+Url: file:///C:/td/veditor/Media/The%20Incredibles.mp4
+Skip: 00:00:00.00 - 00:03:33.00
+Mute: 00:03:44.37 - 00:03:44.58
+Skip: 00:03:57.72 - 00:05:09.44
