@@ -18,7 +18,7 @@ Use **In Mark** and **Out Mark** to select a section of the video. Use **Skip** 
 Check the **Enable Skip Play** box to enable replay with skips and mutes.
 
 Due to security limitations of Javascript, there is no easy way to offer file selection. However, if you copy the videos you want to edit
-into the *Media* subfolder, you can view a list with the *Media* button, and use *Copy link Address* to copy and paste the URL.
+into the *Media* subfolder, you can view a list with the **Media** button, and use *Copy link Address* to copy and paste the URL.
 
 
 ## Saving/Loading scripts ##
