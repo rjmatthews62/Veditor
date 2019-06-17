@@ -28,6 +28,7 @@
 	$("#btnslow").click(toggleSlow);
 	$("#btnmedia").click(toggleMedia);
 	$("#btnhelp").click(function() { $("#help").toggle();});
+	$("#scripts").dblclick(clickScript);
 	$(window).resize(resize);
 	resize();
       });
@@ -297,6 +298,26 @@ function addlog(msg) {
 }
 
 
+function clickScript(e) {
+  var scripts=$("#scripts")[0];
+  addlog("Script clicked: "+scripts.selectionStart);
+  var s=$("#scripts").val();
+  var ix=scripts.selectionStart;
+  while (ix>0 && s.charAt(ix)!=" ") ix-=1;
+  if (s.charAt(ix)==" ") ix+=1;
+  var j=s.substring(ix).search(/[ \r\n]/);
+  if (j<0) j=s.substring(ix).length;
+  var times=s.substring(ix,ix+j);
+  var time=timetosec(times);
+  if (time>=0) {
+    videoObject().currentTime=time;
+    scripts.selectionStart=ix;
+    scripts.selectionEnd=ix+j;
+    addlog("jump to "+times);
+    e.preventDefault();
+  }
+}
+
 function updatetime() {
   var duration=this.duration;
   var position=this.currentTime;
@@ -332,8 +353,9 @@ function updatetime() {
 	  </video>
 	</div>
   <div class="col-auto">
-    Script<br/>
-    <textarea id="scripts" rows="8" cols="80"></textarea>
+    Script <button id="btnparse" type="button">Load Script</button><br/>
+    <textarea id="scripts" rows="8" cols="80"></textarea><br/>
+    <i>Double click on times to jump there</i>
   </div>
       </div>
     </div>
@@ -386,9 +408,6 @@ function updatetime() {
       <div class="row">
 	<div class="col-sm-2 offset-1">
 	  Enable Skip Play: <input type="checkbox" id="enableskip">
-	</div>
-	<div class="col-sm-1">
-	  <button id="btnparse" type="button">Load Script</button>
 	</div>
       </div>
 
