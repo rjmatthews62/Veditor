@@ -36,7 +36,7 @@ Skip: 00:03:57.72 - 00:05:09.44
 ```
 
 ## Times ##
-Times are displayed as hours:minutes:seconds.100th . The **<** and **>** will advance or go back 1/25th of a second, approximate one frame. There is no standard way of retrieve framerate from a video in Javascript.
+Times are displayed as hours:minutes:seconds.100th . The **<** and **>** will advance or go back 1/25th of a second, approximately one frame. There is no standard way of retrieve framerate from a video in Javascript.
 
 ## Full Screen ##
 Hitting the full screen control on the video player with play the video in full screen, and if **Enable Skip Play** is on, the edited video will play.
