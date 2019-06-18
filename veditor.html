@@ -253,7 +253,7 @@ function saveScript() {
   if (files && files.length>0) filename=files[0].name;
   if (filename=="") filename="veditor-script.txt";
   var blob = new Blob([text], {type: "text/plain;charset=utf-8"});
-  saveAs(blob, filename+".txt");
+  saveAs(blob, filename);
 }
 
 function updatelist() {
