@@ -31,6 +31,8 @@
 	$("#btnhelp").click(function() { $("#help").toggle();});
 	$("#scripts").dblclick(clickScript);
 	$("#myfile").change(readScriptFromFile);
+	$("#myfile").click(function(e) { addlog("Clicked file.");});
+	$("#btnloadscript").click(loadScript);
 	$("#btnsave").click(saveScript);
 	$(window).resize(resize);
 	resize();
@@ -335,8 +337,14 @@ function clickScript(e) {
   }
 }
 
-function readScriptFromFile(event) {
-    var input = event.target;
+function loadScript() {
+  if ($("#myfile").val()=="") $("#myfile").click();
+  else readScriptFromFile();
+}
+
+function readScriptFromFile() {
+  addlog("Read script...");
+    var input = $("#myfile")[0];
 
     var reader = new FileReader();
     reader.onload = function(){
@@ -382,9 +390,10 @@ function updatetime() {
 	  </video>
 	</div>
   <div class="col-auto">
-    Script <button id="btnparse" type="button">Load Script</button>
-    <input type="file" accept="text/plain" id="myfile" />
-    <button type="button" id="btnsave">Save</button>
+    Script <button id="btnparse" type="button" title="Compile and Run the script">Run</button>
+    <button type="button" id="btnloadscript" title="Load script from file.">Load</button>
+    <button type="button" id="btnsave" title="Save Script to Text file">Save</button>
+    <input type="file" accept="text/plain" id="myfile" title="Select script to load"/>
     <br/>
     <textarea id="scripts" rows="8" cols="80"></textarea><br/>
     <i>Double click on times to jump there</i>
@@ -467,14 +476,17 @@ function updatetime() {
 	<li>Mute - Add a "Mute" to the edit list... will mute from the in mark to the out mark</li>
 	<li>Slow/Normal - toggle 25% playback speed.</li>
 	<li>Enable Skip Play: If checked, the playback will honour the skips and mutes</li>
-	<li>Load Script - will parse the script contents of the script box and run the script.</li>
+	<li>Run - will parse the script contents of the script box and run the script.</li>
+	<li>Load - will load script from a file and run it.</li>
+	<li>Save - will save script as a text file. <i>This will probably be in your download folder, depending on browser settings.</i></li>
+	<li>Choose File - choose the script file to load or save.</li>
 	<li>Video URL - URL of currently edited video. Strong advise this be a local resource.</li>
 	<li>Load Video - will attempt to load the video in the URL.</li>
 	<li>Media - Toggles a list of the contents of the Media subfolder. You can use copy link address to obtain the video URL</li>
 	<li>Help - Toggles this screen</li>
       </ul>
-      <p>Scripts: currently must be copied and pasted to and from the "script" box to save and load. Use "Load Script" to read the script. Scripts can be manually
-      edited, but you must hit "Load Script" to pick up changes.</p>
+      <p>Scripts: may be copied and pasted to and from the "script" box. Use "Run" to read the script. Scripts can be manually
+      edited, but you must hit "Run" to pick up changes.</p>
       <p>Sample script:</p>
       <pre>
 Url: file:///C:/td/veditor/Media/The%20Incredibles.mp4

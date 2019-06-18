@@ -1,7 +1,9 @@
 # Veditor
-HTML Based simple video editing
+**HTML Based Scripted video playback.**
 
 This is primarily intended as a simple tool to allow parents to produce more child friendly versions of a video, or simply to skip the boring bits.
+
+It is similar to a video editor but it does not alter the original video.  By preserving the original video, there is no copyright violation.
 
 ## Installation
 Download the zip file from Github, and unzip into the folder of your choice, and open *veditor.html* in a browser.
@@ -22,10 +24,12 @@ into the *Media* subfolder, you can view a list with the **Media** button, and u
 
 
 ## Saving/Loading scripts ##
-Again due to limitations with Javascript, there is not reliable way to save to reload your script automatically. However, you can use copy and paste
-to save your script to a text file. To reload the script, paste the script back into the script box and hit **Load Script**.
+Use the **Load** button to load and run a script.
+Use **Save** to save the script to a text file. *Note: This file will be saved where your Browser normally saves downloaded files.*
 
-You can also manually edit the script: Remember to hit **Load Script** to pick up changes.
+You can also use copy and paste to save to or from a text editor of your choice. **Run** will compile and run the contents of the script box.
+
+You can also manually edit the script: Remember to hit **Run** to pick up changes.
 
 Sample Script:
 ```
