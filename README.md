@@ -17,6 +17,8 @@ A video should then load and start playing.
 
 Use **In Mark** and **Out Mark** to select a section of the video. Use **Skip** or **Mute** to the script box.
 
+**Goto** will jump from the in mark to the out mark. This can go backwards as well as forwards. Control which GOTO will take effect next by clicking in the *Goto List* box.
+
 Check the **Enable Skip Play** box to enable replay with skips and mutes.
 
 Due to security limitations of Javascript, there is no easy way to offer file selection. However, if you copy the videos you want to edit
